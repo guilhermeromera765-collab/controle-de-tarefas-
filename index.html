@@ -930,6 +930,6 @@ function csv(){PM=ptsMap();const l=dados().sort((a,b)=>a.feitaAt.localeCompare(b
   l.forEach(t=>rows.push([fmt(t.feitaAt),t.titulo,t.setor,t.cat,whoTxt(t),t.est||'',((t.acum||0)/60000).toFixed(1).replace('.',','),t.est?((t.acum||0)<=t.est*60000?'Sim':'Nao'):'',retr(t),evs(t,'pausa'),evs(t,'transf'),((t.pausado||0)/60000).toFixed(1).replace('.',','),modoDe(t.setor)==='nenhuma'?'':sumP(PM[t.id])]));
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+rows.map(r=>r.map(q).join(';')).join('\n')],{type:'text/csv'}));a.download='desempenho.csv';a.click()}
 render();
- <script>
+</script>
 </body>
 </html>
