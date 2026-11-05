@@ -931,13 +931,5 @@ function csv(){PM=ptsMap();const l=dados().sort((a,b)=>a.feitaAt.localeCompare(b
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+rows.map(r=>r.map(q).join(';')).join('\n')],{type:'text/csv'}));a.download='desempenho.csv';a.click()}
 render();
  <script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./sw.js').catch(function (e) {
-      console.log('SW não registrado:', e);
-    });
-  });
-}
-</script>
 </body>
 </html>
