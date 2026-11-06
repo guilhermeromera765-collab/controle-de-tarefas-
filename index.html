@@ -62,6 +62,12 @@ button.big{padding:14px 16px;font-size:16px}
 .tag{background:var(--soft);border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700;color:var(--mu)}
 .tag.urg{background:var(--er);color:#fff}
 .tag.pz{background:color-mix(in srgb,var(--pa) 16%,transparent);color:var(--pa)}
+.qp{flex:none;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;font-size:13px;font-weight:700;color:var(--pa);background:color-mix(in srgb,var(--pa) 14%,transparent);border:1px solid color-mix(in srgb,var(--pa) 40%,var(--bd))}
+.qp:hover{background:color-mix(in srgb,var(--pa) 26%,transparent);border-color:var(--pa)}
+.qp svg{width:16px;height:16px}
+.pzbtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;color:var(--pa);border-color:color-mix(in srgb,var(--pa) 45%,var(--bd));background:color-mix(in srgb,var(--pa) 10%,var(--card))}
+.pzbtn svg{width:18px;height:18px}
+@media(max-width:560px){.qp span{display:none}.qp{padding:9px}}
 .tag.pt{background:color-mix(in srgb,var(--wa) 18%,transparent);color:var(--wa)}
 .pbox{background:color-mix(in srgb,var(--wa) 9%,var(--card));border:1px solid color-mix(in srgb,var(--wa) 30%,var(--bd));border-radius:16px;padding:12px 14px;margin:12px 0;font-size:13.5px;line-height:1.55}
 .pbox h5{margin:0 0 6px;font:700 13px "Manrope",system-ui,sans-serif;color:var(--wa)}
@@ -639,7 +645,7 @@ function ptsBox(t){const m=modoDe(t.setor);if(m==='nenhuma')return'';
   h+=`<small>${m==='continua'?'1 ponto a cada 1 hora seguida na tarefa, sem pausa. Pausar ou passar a tarefa zera a contagem. ':'1 ponto a cada 60 minutos acumulados no setor, mesmo em tarefas separadas. '}Os pontos entram quando a tarefa é concluída.</small></div>`;
   return h}
 
-const MOT_P=['Falta de material / produto','Aguardando outro setor','Atender demanda urgente','Intervalo / refeição','Problema no sistema / equipamento','Outro'];
+const MOT_P=['Falta de material','Aguardando outro setor','Atender demanda urgente','Intervalo / refeição','Problema no sistema / equipamento','Outro'];
 const MOT_T=['Sobrecarga / mudança de prioridade','Fim de turno','Ausência do responsável','Necessita de outro perfil / treinamento','Outro'];
 
 function toggleLeader(){
@@ -690,7 +696,7 @@ function card(t){
   ${t.status==='pausa'?`<span class="tag pz">${esc(t.motivo)}</span>`:''}
   ${t.status==='pausa'&&t.destino?`<span>Transferida para <b>${esc(t.destino)}</b></span>`:''}
   ${t.status==='conf'?`<span>Concluída: ${fmt(t.feitaAt)}</span>`:''}
-  ${t.status==='fim'?`<span>Finalizada: ${fmt(t.fimAt)}</span>`:''}</div></div>${clk}${t.status==='and'&&t.est?`<div class="pg"><i data-pg="${t.id}"></i></div>`:''}</div>`}
+  ${t.status==='fim'?`<span>Finalizada: ${fmt(t.fimAt)}</span>`:''}</div></div>${clk}${t.status==='and'?`<button class="qp" title="Pausar tarefa" aria-label="Pausar tarefa" onclick="event.stopPropagation();formPausa('${t.id}')">${ICO.pausa}<span>Pausar</span></button>`:''}${t.status==='and'&&t.est?`<div class="pg"><i data-pg="${t.id}"></i></div>`:''}</div>`}
 
 // cronômetro ao vivo
 function tick(){if(document.hidden)return;document.querySelectorAll('[data-run]').forEach(el=>{const t=S.tasks.find(x=>x.id===el.dataset.run);if(t)el.textContent=runTxt(runNow(t,el.dataset.n))});document.querySelectorAll('[data-pz]').forEach(el=>{const t=S.tasks.find(x=>x.id===el.dataset.pz);if(t&&t.pausaAt)el.textContent=dur(Date.now()-new Date(t.pausaAt))});
@@ -708,7 +714,7 @@ function openTask(id){
     h+=`<p>Responsável: <b>${esc(t.quem)}</b></p>${equipeBox(t)}<div class="bigclock"><small>Tempo em execução${t.est?' — previsto '+t.est+' min':''}</small><span data-id="${id}">${dur(elapsed(t))}</span>${t.est?`<div class="pg"><i data-pg="${id}"></i></div>`:''}</div>
     <div class="row"><div class="sc-host" data-sc="concluir:${id}"></div></div>
     <div class="row"><button onclick="formAjud('${id}')">Adicionar pessoa</button></div>
-    <div class="row"><button onclick="formPausa('${id}')">Pausar tarefa</button><button onclick="formTransf('${id}')">Passar para outra pessoa</button></div>
+    <div class="row"><button class="pzbtn" onclick="formPausa('${id}')">${ICO.pausa}Pausar tarefa</button><button onclick="formTransf('${id}')">Passar para outra pessoa</button></div>
     <div class="row lead blk"><button onclick="liberar('${id}')">Devolver à fila</button></div>`}
   if(t.status==='pausa'){
     const ord=[...S.pessoas].sort((a,b)=>(b===t.destino)-(a===t.destino));
@@ -748,7 +754,7 @@ function formPausa(id){
   closeM();$('#boxForm').innerHTML=`<h3>Pausar tarefa</h3><p style="color:var(--mu);margin:0">O cronômetro será interrompido. A justificativa é obrigatória e fica registrada para o líder.</p>
   <label>Motivo</label><select id="pM">${MOT_P.map(x=>`<option>${x}</option>`).join('')}</select>
   <label>Justificativa (obrigatória)</label><textarea id="pJ" rows="3" placeholder="Descreva o que aconteceu"></textarea><div class="err" id="pErr"></div>
-  <div class="row"><button onclick="closeM();openTask('${id}')">Cancelar</button><button class="p" onclick="pausar('${id}')">Confirmar pausa</button></div>`;
+  <div class="row"><button onclick="closeM()">Cancelar</button><button class="p" onclick="pausar('${id}')">Confirmar pausa</button></div>`;
   $('#mForm').classList.add('on');setTimeout(()=>$('#pJ').focus(),50)}
 function pausar(id){const j=$('#pJ').value.trim();if(j.length<5){$('#pErr').textContent='Informe a justificativa (mínimo 5 caracteres).';return}
   const t=get(id),m=$('#pM').value;stopClock(t);closeRun(t);t.status='pausa';t.pausaAt=now();t.pausaPor=t.quem;t.motivo=m;t.just=j;t.destino='';
