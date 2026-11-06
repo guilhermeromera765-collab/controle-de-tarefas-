@@ -62,6 +62,19 @@ button.big{padding:14px 16px;font-size:16px}
 .tag{background:var(--soft);border-radius:999px;padding:2px 10px;font-size:12px;font-weight:700;color:var(--mu)}
 .tag.urg{background:var(--er);color:#fff}
 .tag.pz{background:color-mix(in srgb,var(--pa) 16%,transparent);color:var(--pa)}
+.clock.pw{flex-direction:column;align-items:flex-end;gap:1px;font-size:17px;text-align:right}
+.clock.pw small{font:600 10.5px "Manrope",system-ui,sans-serif;color:var(--mu)}
+.clock.pw.late,.clock.pw.late small{color:var(--wa)}
+#btnNotif{--i:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0'/%3E%3C/svg%3E")}
+#toasts{position:fixed;right:16px;bottom:16px;z-index:30;display:flex;flex-direction:column;gap:10px;width:min(360px,calc(100vw - 32px))}
+.toast{display:flex;gap:12px;align-items:flex-start;background:var(--card);border:1px solid color-mix(in srgb,var(--wa) 55%,var(--bd));border-radius:16px;padding:12px 12px 12px 14px;box-shadow:0 18px 40px -18px rgba(0,0,0,.65);cursor:pointer;animation:rise .35s cubic-bezier(.2,.7,.2,1)}
+.toast em{flex:none;display:grid;place-items:center;width:34px;height:34px;border-radius:11px;background:color-mix(in srgb,var(--wa) 18%,transparent);color:var(--wa)}
+.toast em svg{width:18px;height:18px}
+.toast b{display:block;font-size:14px;line-height:1.3}
+.toast span{display:block;font-size:12.5px;color:var(--mu);margin-top:2px}
+.toast button{flex:none;border:0;background:transparent;padding:2px 6px;color:var(--mu);border-radius:8px}
+.hint{display:block;font-size:12px;color:var(--mu);margin-top:6px;line-height:1.4}
+
 .qp{flex:none;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;font-size:13px;font-weight:700;color:var(--pa);background:color-mix(in srgb,var(--pa) 14%,transparent);border:1px solid color-mix(in srgb,var(--pa) 40%,var(--bd))}
 .qp:hover{background:color-mix(in srgb,var(--pa) 26%,transparent);border-color:var(--pa)}
 .qp svg{width:16px;height:16px}
@@ -166,6 +179,10 @@ body.inpainel #btnView{background:rgba(255,255,255,.12);color:#fff}
 .app{flex:1;min-width:0}
 .top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;max-width:1120px;margin:0 auto;padding:28px 28px 0}
 .top h1{font:700 27px/1.1 "Bricolage Grotesque","Manrope",system-ui,sans-serif;margin:0;letter-spacing:-.01em}
+#ttC{display:none;max-width:none;pointer-events:none}
+.tton .ttx{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.tton #ttC{display:block}
+.top h1{position:relative;z-index:1}
 .top .sub{display:block;font:500 13px "Manrope",system-ui,sans-serif;color:var(--mu);margin-top:7px}
 .top .badge{margin-left:auto}
 main{max-width:1120px;padding:22px 28px 90px}
@@ -341,12 +358,13 @@ html.tt body,html.tt .side,html.tt .kpis,html.tt .kc,html.tt .task,html.tt .pane
   </nav>
   <div class="foot">
     <button class="hb" id="btnTheme" onclick="toggleTheme()">Tema claro</button>
+    <button class="hb" id="btnNotif" onclick="toggleAvisos()">Avisos</button>
     <span class="dbst off" id="dbst">● Sem conexão</span>
     <button class="hb" id="btnLead" onclick="toggleLeader()">Acesso do líder</button>
   </div>
 </aside>
 <div class="app">
-<div class="top"><h1>Controle de Tarefas<span class="sub" id="subT"></span></h1><span class="badge">Modo líder</span></div>
+<div class="top"><h1 id="ttH"><span class="ttx">Controle de Tarefas</span><canvas id="ttC" aria-hidden="true"></canvas><span class="sub" id="subT"></span></h1><span class="badge">Modo líder</span></div>
 <main>
   <div id="vTarefas">
     <div class="kpis" id="kpis"></div>
@@ -596,6 +614,7 @@ const av=(n,s='')=>`<span class="av ${s}" style="--h:${[...String(n)].reduce((a,
 function log(t,txt){(t.hist=t.hist||[]).push({at:now(),txt})}
 function dur(ms){ms=Math.max(0,Math.floor(ms/1000));const h=Math.floor(ms/3600),m=Math.floor(ms%3600/60),s=ms%60;const p=n=>String(n).padStart(2,'0');return p(h)+':'+p(m)+':'+p(s)}
 // tempo total = acumulado de execuções anteriores + execução atual
+const pendSince=t=>t.pendAt||t.criada||now();
 const elapsed=t=>(t.acum||0)+(t.status==='and'&&t.iniAt?Date.now()-new Date(t.iniAt):0);
 const allWho=t=>[t.quem,...(t.ajud||[])].filter(Boolean);
 const whoTxt=t=>allWho(t).join(', ');
@@ -682,7 +701,7 @@ function render(){
 function card(t){
   const ov=t.est&&elapsed(t)>t.est*60000?' over':'';
   const clk=t.status==='and'?`<div class="clock${ov}" data-id="${t.id}">${dur(elapsed(t))}</div>`:
-            (t.status==='conf'||t.status==='fim')?`<div class="clock done${ov}" title="Tempo gasto">${dur(t.acum||0)}</div>`:t.status==='pausa'?`<div class="clock done" style="color:var(--pa)" data-pz="${t.id}" title="Tempo parada">${dur(Date.now()-new Date(t.pausaAt))}</div>`:'';
+            (t.status==='conf'||t.status==='fim')?`<div class="clock done${ov}" title="Tempo gasto">${dur(t.acum||0)}</div>`:t.status==='pausa'?`<div class="clock done" style="color:var(--pa)" data-pz="${t.id}" title="Tempo parada">${dur(Date.now()-new Date(t.pausaAt))}</div>`:t.status==='pend'?`<div class="clock done pw${t.notif&&Date.now()-new Date(pendSince(t))>=t.notif*60000?' late':''}" title="Tempo que a tarefa está pendente"><small>pendente há</small><span data-pw="${t.id}">${dur(Date.now()-new Date(pendSince(t)))}</span></div>`:'';
   return `<div class="task s-${t.status} ${t.prio==='alta'?'urg':''}" onclick="openTask('${t.id}')"><div class="ic">${ICO[t.status]}</div>
   <div class="info"><div class="t">${esc(t.titulo)}</div>
   <div class="meta"><span class="tag">${esc(t.setor)}</span><span class="tag">${esc(t.cat)}</span>
@@ -690,6 +709,7 @@ function card(t){
   ${t.criador?`<span class="tag" title="Adicionada por ${esc(t.criador)}">Rotina · ${esc(t.criador)}</span>`:''}
   ${t.prio==='alta'?'<span class="tag urg">Urgente</span>':''}
   ${t.status==='pend'&&t.marcados?.length?`<span class="tag" style="font-weight:700">Para: ${esc(t.marcados.join(', '))}</span>`:''}
+  ${t.status==='pend'&&t.notif?`<span class="tag pt lead" title="Intervalo dos avisos">Aviso a cada ${t.notif} min</span>`:''}
   ${t.est?`<span>Previsto: ${t.est} min</span>`:''}
   ${t.quem?`<span class="who">${av(t.quem,'s')}${esc(whoTxt(t))}</span>`:''}
   ${t.status==='and'?`<span>Início: ${fmt(t.startAt||t.iniAt)}</span>`:''}
@@ -699,7 +719,7 @@ function card(t){
   ${t.status==='fim'?`<span>Finalizada: ${fmt(t.fimAt)}</span>`:''}</div></div>${clk}${t.status==='and'?`<button class="qp" title="Pausar tarefa" aria-label="Pausar tarefa" onclick="event.stopPropagation();formPausa('${t.id}')">${ICO.pausa}<span>Pausar</span></button>`:''}${t.status==='and'&&t.est?`<div class="pg"><i data-pg="${t.id}"></i></div>`:''}</div>`}
 
 // cronômetro ao vivo
-function tick(){if(document.hidden)return;document.querySelectorAll('[data-run]').forEach(el=>{const t=S.tasks.find(x=>x.id===el.dataset.run);if(t)el.textContent=runTxt(runNow(t,el.dataset.n))});document.querySelectorAll('[data-pz]').forEach(el=>{const t=S.tasks.find(x=>x.id===el.dataset.pz);if(t&&t.pausaAt)el.textContent=dur(Date.now()-new Date(t.pausaAt))});
+function tick(){if(document.hidden)return;document.querySelectorAll('[data-pw]').forEach(el=>{const t=S.tasks.find(x=>x.id===el.dataset.pw);if(!t)return;const ms=Date.now()-new Date(pendSince(t));el.textContent=dur(ms);const p=el.closest('.pw');if(p)p.classList.toggle('late',!!t.notif&&ms>=t.notif*60000)});document.querySelectorAll('[data-run]').forEach(el=>{const t=S.tasks.find(x=>x.id===el.dataset.run);if(t)el.textContent=runTxt(runNow(t,el.dataset.n))});document.querySelectorAll('[data-pz]').forEach(el=>{const t=S.tasks.find(x=>x.id===el.dataset.pz);if(t&&t.pausaAt)el.textContent=dur(Date.now()-new Date(t.pausaAt))});
   document.querySelectorAll('[data-id]').forEach(el=>{const t=S.tasks.find(x=>x.id===el.dataset.id);if(t){el.textContent=dur(elapsed(t));const o=t.est&&elapsed(t)>t.est*60000;el.classList.toggle('over',!!o);const bc=el.closest('.bigclock');if(bc)bc.classList.toggle('over',!!o)}});document.querySelectorAll('[data-pg]').forEach(el=>{const t=S.tasks.find(x=>x.id===el.dataset.pg);if(t&&t.est){const p=elapsed(t)/(t.est*60000);el.style.width=Math.min(100,p*100)+'%';el.classList.toggle('over',p>1)}})}
 setInterval(tick,1000);
 
@@ -709,7 +729,7 @@ function openTask(id){
   if(t.obs)h+=`<p>${esc(t.obs)}</p>`;
   PM=ptsMap();h+=ptsBox(t);
   if(t.status==='pend'){
-    SEL=(t.marcados||[]).filter(n=>S.pessoas.includes(n));h+=`${t.marcados?.length?`<p>Marcada para: <b>${esc(t.marcados.join(', '))}</b></p>`:''}<label>Quem vai fazer — toque em um ou mais nomes (o 1º é o responsável)</label><div class="names" id="selNames">${S.pessoas.map(p=>`<button class="big nm" onclick="togSel(this)" data-n="${esc(p)}">${av(p)}<span>${esc(p)}</span></button>`).join('')}</div><div class="row"><button class="ok big" id="btnGo" onclick="assumir('${id}')" disabled>Iniciar tarefa</button></div>`}
+    SEL=(t.marcados||[]).filter(n=>S.pessoas.includes(n));h+=`<div class="bigclock" style="color:var(--wa)"><small>Pendente há${t.notif?' — aviso a cada '+t.notif+' min':''}</small><span data-pw="${id}">${dur(Date.now()-new Date(pendSince(t)))}</span></div>${t.marcados?.length?`<p>Marcada para: <b>${esc(t.marcados.join(', '))}</b></p>`:''}<label>Quem vai fazer — toque em um ou mais nomes (o 1º é o responsável)</label><div class="names" id="selNames">${S.pessoas.map(p=>`<button class="big nm" onclick="togSel(this)" data-n="${esc(p)}">${av(p)}<span>${esc(p)}</span></button>`).join('')}</div><div class="row"><button class="ok big" id="btnGo" onclick="assumir('${id}')" disabled>Iniciar tarefa</button></div>`}
   if(t.status==='and'){
     h+=`<p>Responsável: <b>${esc(t.quem)}</b></p>${equipeBox(t)}<div class="bigclock"><small>Tempo em execução${t.est?' — previsto '+t.est+' min':''}</small><span data-id="${id}">${dur(elapsed(t))}</span>${t.est?`<div class="pg"><i data-pg="${id}"></i></div>`:''}</div>
     <div class="row"><div class="sc-host" data-sc="concluir:${id}"></div></div>
@@ -775,7 +795,7 @@ function transferir(id){const j=$('#tJ').value.trim(),para=$('#tP').value,m=$('#
   const t=get(id),de=t.quem;
   if(t.status==='and'){stopClock(t);closeRun(t);t.status='pausa';t.pausaAt=now();t.pausaPor=de;t.motivo='Transferência: '+m;t.just=j}
   addEv(t,{tipo:'transf',por:de,para,motivo:m,just:j});t.quem=para;t.ajud=(t.ajud||[]).filter(x=>x!==para);t.destino=para;log(t,`${de} passou para ${para} — ${m}: ${j}`);save();closeM()}
-function liberar(id){const t=get(id);stopClock(t);closeRun(t);log(t,`${t.quem} devolveu à fila`);t.status='pend';t.quem='';t.ajud=[];save();closeM()}
+function liberar(id){const t=get(id);stopClock(t);closeRun(t);log(t,`${t.quem} devolveu à fila`);t.status='pend';t.pendAt=now();t.quem='';t.ajud=[];save();closeM()}
 function confirmarFim(id){const t=get(id);t.status='fim';t.fimAt=now();log(t,'Conferida e finalizada pelo líder');save()}
 function finalizar(id){confirmarFim(id);closeM()}
 function reprovar(id){const t=get(id);const m=prompt('Motivo / o que refazer (opcional):');if(m===null)return;
@@ -792,6 +812,7 @@ function openNew(id){
   <label>Tipo</label><select id="fC">${opt(CATS,t.cat)}</select>
   <label>Prioridade</label><select id="fP"><option value="normal" ${t.prio==='normal'?'selected':''}>Normal</option><option value="alta" ${t.prio==='alta'?'selected':''}>Urgente</option></select>
   <label>Tempo estipulado (minutos)</label><input id="fE" type="number" min="0" step="1" value="${t.est||''}" placeholder="Ex.: 30 (deixe vazio se não houver)">
+  ${leader?`<label>Avisar que a tarefa está pendente a cada (minutos)</label><input id="fN" type="number" min="0" step="1" value="${t.notif||''}" placeholder="Ex.: 15 (vazio = sem aviso)"><span class="hint">Enquanto a tarefa estiver pendente, quem estiver com o sistema aberto recebe um aviso nesse intervalo. Para de avisar quando alguém inicia a tarefa.</span>`:''}
   <label>Marcar pessoas específicas (opcional)</label><div class="names" id="fM">${S.pessoas.map(p=>`<button type="button" class="nm ${(t.marcados||[]).includes(p)?'p':''}" data-n="${esc(p)}" onclick="this.classList.toggle('p')">${av(p)}<span>${esc(p)}</span></button>`).join('')}</div>
   <label>Observações</label><textarea id="fO" rows="3">${esc(t.obs)}</textarea>
   <div class="row"><button onclick="closeM()">Cancelar</button><button class="p" onclick="saveTask('${id||''}')">Salvar</button></div>
@@ -800,7 +821,7 @@ function openNew(id){
 function saveTask(id,again){
   const titulo=$('#fT').value.trim();if(!titulo){$('#fT').focus();return}
   const criador=(!id&&!leader&&$('#fQ'))?$('#fQ').value:'';if(!id&&!leader&&!criador){alert('Selecione quem está adicionando a tarefa.');$('#fQ').focus();return}
-  const d={titulo,setor:$('#fS').value,cat:$('#fC').value,prio:$('#fP').value,obs:$('#fO').value.trim(),est:Math.max(0,parseInt($('#fE').value)||0),marcados:[...document.querySelectorAll('#fM .nm.p')].map(b=>b.dataset.n)};
+  const d={titulo,setor:$('#fS').value,cat:$('#fC').value,prio:$('#fP').value,obs:$('#fO').value.trim(),est:Math.max(0,parseInt($('#fE').value)||0),marcados:[...document.querySelectorAll('#fM .nm.p')].map(b=>b.dataset.n),...($('#fN')?{notif:Math.max(0,parseInt($('#fN').value)||0)}:{})};
   if(id)Object.assign(get(id),d);else{const t={id:uid(),status:'pend',quem:'',criada:now(),acum:0,...d};if(criador)t.criador=criador;log(t,(criador?`Adicionada por ${criador} (rotina)`:'Criada')+(d.marcados.length?` — marcada para ${d.marcados.join(', ')}`:''));S.tasks.push(t)}
   save();closeM();if(again)openNew()}
 
@@ -936,6 +957,136 @@ function csv(){PM=ptsMap();const l=dados().sort((a,b)=>a.feitaAt.localeCompare(b
   l.forEach(t=>rows.push([fmt(t.feitaAt),t.titulo,t.setor,t.cat,whoTxt(t),t.est||'',((t.acum||0)/60000).toFixed(1).replace('.',','),t.est?((t.acum||0)<=t.est*60000?'Sim':'Nao'):'',retr(t),evs(t,'pausa'),evs(t,'transf'),((t.pausado||0)/60000).toFixed(1).replace('.',','),modoDe(t.setor)==='nenhuma'?'':sumP(PM[t.id])]));
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+rows.map(r=>r.map(q).join(';')).join('\n')],{type:'text/csv'}));a.download='desempenho.csv';a.click()}
 render();
+</script>
+<script>
+/* ===== TechText (recriação em JS puro do componente React Bits) =====
+   Título "Controle de Tarefas": as letras viram traços tracejados perto do cursor. */
+(function(){
+const H=document.getElementById('ttH'),cv=document.getElementById('ttC');if(!H||!cv||!cv.getContext)return;
+const cx=cv.getContext('2d');
+const P={text:'Controle de Tarefas',fontWeight:700,letterSpacing:-0.02,dashLength:4,dashGap:2,specks:15,
+  reach:120,softness:0.7,strokeWidth:1.5,speed:1,bounce:0.4,clickKick:true,selection:true,labels:true,draggable:true,sweep:true};
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const PADX=34,PADY=34;
+let fs=44,L=[],W=0,Hh=0,base=0,dpr=1,fam='',raf=0,last=0,t=0;
+let mx=0,my=0,has=false,pres=0,drag=null,sweepX=-1e3,sweepOn=false,sweepT=0,hov=-1;
+const sp=Array.from({length:P.specks},()=>({a:Math.random()*6.283,r:.35+Math.random()*.65,s:(Math.random()-.5)*2.2,x:0,y:0,z:1+Math.random()*1.4}));
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const col=()=>getComputedStyle(H).color;
+function font(){return `${P.fontWeight} ${fs}px ${fam}`}
+function layout(){
+  const cs=getComputedStyle(H);fam=cs.fontFamily;fs=innerWidth<=600?30:innerWidth<=880?36:44;
+  dpr=Math.min(2,devicePixelRatio||1);cx.font=font();
+  let x=0;const old=L;L=[...P.text].map((ch,i)=>{const w=cx.measureText(ch).width,o=old[i]||{};
+    const l={ch,x,w,ox:o.ox||0,oy:o.oy||0,vx:o.vx||0,vy:o.vy||0,k:o.k||0};x+=w+P.letterSpacing*fs;return l});
+  const tw=Math.max(1,x-P.letterSpacing*fs);W=Math.ceil(tw)+PADX*2;Hh=Math.ceil(fs*1.25)+PADY*2;base=PADY+fs;
+  cv.width=W*dpr;cv.height=Hh*dpr;cv.style.width=W+'px';cv.style.height=Hh+'px';
+  cv.style.margin=`${-PADY}px ${-PADX}px ${-PADY+0}px ${-PADX}px`;
+  L.forEach(l=>l.x+=PADX);draw(0)}
+const cen=l=>[l.x+l.w/2+l.ox,base-fs*.33+l.oy];
+function toLocal(e){const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*(W/r.width),(e.clientY-r.top)*(Hh/r.height)]}
+function near(){const r=P.reach*1.6;return mx>-r&&mx<W+r&&my>-r&&my<Hh+r}
+function wake(){if(!raf&&!document.hidden){last=performance.now();raf=requestAnimationFrame(frame)}}
+function step(dt){
+  const kk=Math.min(2.5,dt/16.7);let busy=false;
+  has=has&&near();pres+=((has?1:0)-pres)*Math.min(1,.16*kk);if(pres>.01||has)busy=true;
+  if(sweepOn){sweepT+=dt/1500;sweepX=-60+sweepT*(W+120);if(sweepT>=1){sweepOn=false;sweepX=-1e3}else busy=true}
+  let hd=1e9;hov=-1;
+  L.forEach((l,i)=>{const[c,d]=cen(l),dist=has?Math.hypot(mx-c,my-d):1e9;
+    let tg=has?clamp((1-dist/P.reach)/P.softness,0,1):0;tg=tg*tg*(3-2*tg);
+    if(sweepOn)tg=Math.max(tg,clamp(1-Math.abs(c-sweepX)/70,0,1));
+    l.k+=(tg-l.k)*Math.min(1,.2*kk);if(l.k<.003&&tg===0)l.k=0;else busy=true;
+    if(drag&&drag.i===i){l.ox=mx-drag.dx-(l.x+l.w/2-0);l.oy=my-drag.dy-(base-fs*.33);l.vx=l.vy=0;busy=true}
+    else{l.vx=(l.vx-l.ox*.1*kk)*Math.pow(.75+P.bounce*.2,kk);l.vy=(l.vy-l.oy*.1*kk)*Math.pow(.75+P.bounce*.2,kk);
+      l.ox+=l.vx*kk;l.oy+=l.vy*kk;if(Math.abs(l.ox)<.05&&Math.abs(l.vx)<.05)l.ox=l.vx=0;else busy=true;
+      if(Math.abs(l.oy)<.05&&Math.abs(l.vy)<.05)l.oy=l.vy=0;else busy=true}
+    if(has&&l.ch.trim()&&dist<hd&&dist<Math.max(l.w,fs*.6)){hd=dist;hov=i}});
+  sp.forEach(s=>{s.a+=s.s*dt/1000;const R=P.reach*s.r,tx=mx+Math.cos(s.a)*R,ty=my+Math.sin(s.a)*R*.6;
+    if(!s.x&&!s.y){s.x=tx;s.y=ty}s.x+=(tx-s.x)*Math.min(1,.07*kk);s.y+=(ty-s.y)*Math.min(1,.07*kk)});
+  return busy}
+function draw(dt){
+  cx.setTransform(dpr,0,0,dpr,0,0);cx.clearRect(0,0,W,Hh);const c=col();
+  cx.font=font();cx.textBaseline='alphabetic';cx.lineJoin='round';cx.lineWidth=P.strokeWidth;
+  L.forEach(l=>{if(!l.ch.trim())return;const x=l.x+l.ox,y=base+l.oy;
+    cx.setLineDash([]);cx.globalAlpha=1-l.k*.92;cx.fillStyle=c;cx.fillText(l.ch,x,y);
+    if(l.k>.01){cx.globalAlpha=l.k;cx.strokeStyle=c;cx.setLineDash([P.dashLength,P.dashGap]);
+      cx.lineDashOffset=-t*.02*P.speed*P.dashLength*3;cx.strokeText(l.ch,x,y)}});
+  cx.setLineDash([]);
+  if(pres>.01){cx.fillStyle=c;sp.forEach(s=>{cx.globalAlpha=pres*.75;cx.fillRect(s.x-s.z/2,s.y-s.z/2,s.z,s.z)})}
+  if(sweepOn){cx.globalAlpha=.35;cx.strokeStyle=c;cx.lineWidth=1;cx.beginPath();cx.moveTo(sweepX,PADY-6);cx.lineTo(sweepX,Hh-PADY+6);cx.stroke()}
+  const l=L[hov];
+  if(l&&(P.selection||P.labels)&&l.k>.35){const bx=l.x+l.ox-3,by=base+l.oy-fs*.8,bw=l.w+6,bh=fs*1.0;cx.globalAlpha=Math.min(1,l.k*1.2);cx.strokeStyle=c;cx.fillStyle=c;cx.lineWidth=1;
+    if(P.selection){cx.setLineDash([3,3]);cx.strokeRect(bx,by,bw,bh);cx.setLineDash([]);
+      [[bx,by],[bx+bw,by],[bx,by+bh],[bx+bw,by+bh]].forEach(p=>cx.fillRect(p[0]-2.5,p[1]-2.5,5,5))}
+    if(P.labels){cx.font='600 10px ui-monospace,Menlo,Consolas,monospace';
+      cx.fillText(`${l.ch} · U+${l.ch.codePointAt(0).toString(16).toUpperCase().padStart(4,'0')}`,bx,by-6);
+      const s=`${Math.round(l.w)}×${Math.round(fs)}`;cx.fillText(s,bx+bw-cx.measureText(s).width,by+bh+13)}}
+  cx.globalAlpha=1}
+function frame(n){raf=0;const dt=Math.min(50,n-last);last=n;t+=dt;const busy=step(dt);draw(dt);
+  if(busy&&!document.hidden){raf=requestAnimationFrame(frame)}}
+function pos(e){[mx,my]=toLocal(e)}
+addEventListener('pointermove',e=>{if(reduce)return;if(e.pointerType==='touch'&&!drag&&!has)return;pos(e);has=near();if(has||pres>.01)wake()},{passive:true});
+document.addEventListener('pointerleave',()=>{has=false;drag=null;wake()});
+addEventListener('blur',()=>{has=false;drag=null;wake()});
+addEventListener('pointerdown',e=>{if(reduce||e.target.closest('button,input,select,textarea,a,label,.modal'))return;
+  pos(e);if(!near())return;has=true;
+  if(P.clickKick)L.forEach(l=>{const[c,d]=cen(l),dx=c-mx,dy=d-my,r=Math.hypot(dx,dy)||1,f=clamp(1-r/(P.reach*1.2),0,1);
+    if(f>0){const k=f*fs*.22;l.vx+=dx/r*k;l.vy+=dy/r*k-f*fs*.08}});
+  if(P.draggable){let bi=-1,bd=1e9;L.forEach((l,i)=>{if(!l.ch.trim())return;const[c,d]=cen(l),r=Math.hypot(mx-c,my-d);
+    if(r<bd&&Math.abs(mx-c)<l.w/2+4&&Math.abs(my-d)<fs*.55){bd=r;bi=i}});
+    if(bi>=0){const l=L[bi];drag={i:bi,dx:mx-(l.x+l.w/2+l.ox),dy:my-(base-fs*.33+l.oy)};e.preventDefault()}}
+  wake()});
+const up=e=>{if(drag){drag=null;wake()}if(e.pointerType==='touch'){has=false;wake()}};
+addEventListener('pointerup',up);addEventListener('pointercancel',up);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)wake()});
+let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{layout()},120)});
+// ondas periódicas ("sweep")
+if(P.sweep&&!reduce)setInterval(()=>{if(!document.hidden&&!sweepOn&&!has){sweepOn=true;sweepT=0;wake()}},9000);
+// tema claro/escuro: redesenha com a nova cor
+new MutationObserver(()=>setTimeout(()=>draw(0),60)).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+matchMedia('(prefers-color-scheme: light)').addEventListener('change',()=>setTimeout(()=>draw(0),60));
+function start(){H.classList.add('tton');layout()}
+if(document.fonts&&document.fonts.load){document.fonts.load(`${P.fontWeight} 40px "Bricolage Grotesque"`).catch(()=>{}).then(()=>document.fonts.ready).then(start)}else start();
+})();
+</script>
+<script>
+/* ===== Avisos de tarefa pendente ===== */
+(function(){
+const NK=KEY+'_avisos';let on=true;try{on=localStorage.getItem(NK)!=='off'}catch(e){}
+const NN={};let AC=null;
+const hmin=ms=>{const m=Math.max(0,Math.round(ms/60000));return m>=60?Math.floor(m/60)+'h '+String(m%60).padStart(2,'0')+'min':m+' min'};
+const canSys=()=>'Notification' in window;
+const bell=ico('<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/>');
+function mkAC(){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}}
+addEventListener('pointerdown',mkAC,{once:true});
+function beep(){if(!on)return;mkAC();if(!AC)return;try{[[880,0],[1175,.17]].forEach(([f,d])=>{const o=AC.createOscillator(),g=AC.createGain(),t0=AC.currentTime+d;
+  o.type='sine';o.frequency.value=f;o.connect(g);g.connect(AC.destination);g.gain.setValueAtTime(0,t0);g.gain.linearRampToValueAtTime(.2,t0+.02);g.gain.exponentialRampToValueAtTime(.0001,t0+.3);o.start(t0);o.stop(t0+.32)})}catch(e){}}
+function box(){let b=document.getElementById('toasts');if(!b){b=document.createElement('div');b.id='toasts';b.setAttribute('aria-live','polite');document.body.appendChild(b)}return b}
+function toast(t,txt){const b=box(),d=document.createElement('div');d.className='toast';
+  d.innerHTML=`<em>${bell}</em><div style="flex:1;min-width:0"><b>${esc(t.titulo)}</b><span>${esc(txt)}</span></div><button aria-label="Fechar">✕</button>`;
+  d.onclick=e=>{d.remove();if(!e.target.closest('button'))openTask(t.id)};b.appendChild(d);
+  while(b.children.length>4)b.firstElementChild.remove();setTimeout(()=>d.remove(),15000)}
+function fire(t){if(!on)return;const ms=Date.now()-new Date(pendSince(t));
+  const txt=`Pendente há ${hmin(ms)} · ${t.setor}${t.marcados&&t.marcados.length?' · Para: '+t.marcados.join(', '):''}`;
+  toast(t,txt);beep();try{navigator.vibrate&&navigator.vibrate([120,60,120])}catch(e){}
+  if(canSys()&&Notification.permission==='granted'&&document.hidden){try{const n=new Notification('Tarefa pendente: '+t.titulo,{body:txt,tag:'pend-'+t.id});n.onclick=()=>{focus();n.close()}}catch(e){}}}
+function check(){S.tasks.forEach(t=>{
+  if(t.status!=='pend'||!(t.notif>0)){delete NN[t.id];return}
+  const n=Math.floor((Date.now()-new Date(pendSince(t)))/(t.notif*60000));
+  if(NN[t.id]===undefined){NN[t.id]=n;return}   // ao abrir o sistema, não dispara avisos atrasados
+  if(n<NN[t.id])NN[t.id]=n;
+  if(n>NN[t.id]){NN[t.id]=n;fire(t)}})}
+setInterval(check,5000);
+function ui(){const b=document.getElementById('btnNotif');if(!b)return;
+  const ask=on&&canSys()&&Notification.permission==='default';
+  b.textContent=!on?'Avisos desligados':ask?'Ativar avisos do navegador':'Avisos ligados';
+  b.title=!on?'Clique para ligar os avisos de tarefas pendentes':ask?'Clique para permitir notificações do navegador':'Clique para desligar os avisos de tarefas pendentes'}
+window.toggleAvisos=function(){mkAC();
+  if(on&&canSys()&&Notification.permission==='default'){Notification.requestPermission().then(ui).catch(ui);return}
+  on=!on;try{localStorage.setItem(NK,on?'on':'off')}catch(e){}
+  if(on){beep();if(canSys()&&Notification.permission==='default')Notification.requestPermission().then(ui).catch(ui)}ui()};
+ui();
+})();
 </script>
 </body>
 </html>
